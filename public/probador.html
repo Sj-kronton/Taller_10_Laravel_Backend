@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Probador de la API EventHub</title>
+<style>
+:root{
+  --bg:#f5f6f4; --panel:#ffffff; --ink:#1c2321; --muted:#5d6b66; --line:#d6dcd8;
+  --accent:#1f6f5c; --accent-ink:#ffffff; --code-bg:#14201c; --code-ink:#d8efe6;
+  --ok:#1f7a45; --warn:#9a6700; --bad:#b3261e;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#101614; --panel:#18211e; --ink:#e6eeea; --muted:#92a39c; --line:#2c3a35;
+    --accent:#4fb99a; --accent-ink:#06130e; --code-bg:#0a0f0d; --code-ink:#cfe9de;
+    --ok:#56c48a; --warn:#e0b04a; --bad:#ff8a80;
+    color-scheme: dark;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:1000px;margin:0 auto;padding:24px 16px 48px}
+h1{font-size:1.5rem;margin:0 0 4px}
+h2{font-size:1rem;margin:0 0 12px}
+p.sub{margin:0 0 20px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:760px){.grid{grid-template-columns:1fr}}
+section{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px}
+.full{grid-column:1/-1}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:7px 12px;border-radius:6px}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+label{display:block;font-size:.85rem;color:var(--muted);margin:10px 0 3px}
+input,textarea{width:100%;font:inherit;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
+textarea{min-height:64px;resize:vertical}
+.sesion{font-size:.9rem;margin-top:12px;color:var(--muted)}
+.sesion b{color:var(--ink)}
+.token{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.78rem;word-break:break-all;margin-top:4px}
+.estado{display:inline-block;font-weight:700;padding:2px 10px;border-radius:99px;border:2px solid currentColor}
+.s2{color:var(--ok)} .s4{color:var(--warn)} .s5{color:var(--bad)}
+pre{margin:10px 0 0;background:var(--code-bg);color:var(--code-ink);padding:12px;border-radius:6px;overflow:auto;max-height:380px;font-size:.82rem}
+.peticion{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.85rem;margin-left:8px}
+.nota{font-size:.82rem;color:var(--muted);margin-top:8px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Probador de la API EventHub</h1>
+  <p class="sub">Herramienta opcional de prueba. Llama a la API real en <code>/api</code> y muestra el código HTTP y el JSON recibido.</p>
+
+  <div class="grid">
+    <section>
+      <h2>1. Iniciar sesión</h2>
+      <div class="row" id="rapidos"></div>
+      <label for="email">Email</label>
+      <input id="email" type="text" value="organizador.a@eventhub.test" autocomplete="off">
+      <label for="password">Contraseña</label>
+      <input id="password" type="text" value="password123" autocomplete="off">
+      <div class="row" style="margin-top:12px">
+        <button class="primary" id="btnLogin">Iniciar sesión</button>
+        <button id="btnSalir">Quitar token</button>
+      </div>
+      <div class="sesion" id="sesion">Sin token: las peticiones protegidas devolverán 401.</div>
+    </section>
+
+    <section>
+      <h2>2. Consultas</h2>
+      <div class="row">
+        <button data-get="/api/eventos">GET /eventos (público)</button>
+        <button data-get="/api/perfil">GET /perfil</button>
+        <button data-get="/api/admin/metricas">GET /admin/metricas</button>
+      </div>
+      <p class="nota">Usan el token activo. Cambia de usuario arriba para ver los 200, 401 y 403.</p>
+    </section>
+
+    <section class="full">
+      <h2>3. Editar un evento (PUT /eventos/{id})</h2>
+      <div class="grid">
+        <div>
+          <label for="eid">ID del evento</label>
+          <input id="eid" type="number" value="1">
+          <label for="titulo">Título</label>
+          <input id="titulo" type="text" value="Laravel Conf 2026">
+          <label for="cupo">Cupo máximo</label>
+          <input id="cupo" type="text" value="200">
+        </div>
+        <div>
+          <label for="desc">Descripción</label>
+          <textarea id="desc">Conferencia sobre desarrollo de APIs con Laravel.</textarea>
+          <label for="uid">user_id (opcional, para probar que no cambia el dueño)</label>
+          <input id="uid" type="text" placeholder="vacío = no se envía">
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px"><button class="primary" id="btnPut">Enviar PUT</button></div>
+      <p class="nota">Prueba con el dueño (200), otro usuario (403), cupo 0 o título vacío (422) y un ID inexistente (404).</p>
+    </section>
+
+    <section class="full" aria-live="polite">
+      <h2>Respuesta</h2>
+      <div id="estadoBox"><span class="nota">Aún no hay respuestas.</span></div>
+      <pre id="salida">—</pre>
+    </section>
+  </div>
+</main>
+
+<script>
+// El token vive solo en memoria: al recargar la página se pierde.
+let token = null;
+let usuario = null;
+const $ = (id) => document.getElementById(id);
+
+const rapidos = [
+  ["Admin", "admin@eventhub.test"],
+  ["Organizador A", "organizador.a@eventhub.test"],
+  ["Organizador B", "organizador.b@eventhub.test"],
+  ["Asistente", "asistente@eventhub.test"],
+];
+rapidos.forEach(([nombre, email]) => {
+  const b = document.createElement("button");
+  b.textContent = nombre;
+  b.onclick = () => { $("email").value = email; $("password").value = "password123"; login(); };
+  $("rapidos").appendChild(b);
+});
+
+function pintarSesion() {
+  const s = $("sesion");
+  if (!token) { s.textContent = "Sin token: las peticiones protegidas devolverán 401."; return; }
+  s.innerHTML = "Sesión activa como <b></b>";
+  s.querySelector("b").textContent = usuario;
+  const t = document.createElement("div");
+  t.className = "token";
+  t.textContent = token;
+  s.appendChild(t);
+}
+
+async function llamar(metodo, url, cuerpo) {
+  // No se envía el header Accept: así se comprueba que la API responde JSON igualmente.
+  const headers = {};
+  if (token) headers["Authorization"] = "Bearer " + token;
+  const opciones = { method: metodo, headers };
+  if (cuerpo !== undefined) {
+    headers["Content-Type"] = "application/json";
+    opciones.body = JSON.stringify(cuerpo);
+  }
+  let r, texto;
+  try {
+    r = await fetch(url, opciones);
+    texto = await r.text();
+  } catch (e) {
+    mostrar(metodo, url, 0, "No se pudo conectar con la API: " + e.message);
+    return null;
+  }
+  let datos = texto;
+  try { datos = JSON.stringify(JSON.parse(texto), null, 2); } catch (e) {}
+  mostrar(metodo, url, r.status, datos, r.statusText);
+  return { status: r.status, texto };
+}
+
+function mostrar(metodo, url, status, cuerpo, texto) {
+  const clase = status >= 500 || status === 0 ? "s5" : status >= 400 ? "s4" : "s2";
+  const box = $("estadoBox");
+  box.innerHTML = "";
+  const e = document.createElement("span");
+  e.className = "estado " + clase;
+  e.textContent = status === 0 ? "Sin respuesta" : status + (texto ? " " + texto : "");
+  const p = document.createElement("span");
+  p.className = "peticion";
+  p.textContent = metodo + " " + url;
+  box.append(e, p);
+  $("salida").textContent = cuerpo;
+}
+
+async function login() {
+  const res = await llamar("POST", "/api/login", { email: $("email").value, password: $("password").value });
+  if (res && res.status === 200) {
+    token = JSON.parse(res.texto).access_token;
+    usuario = $("email").value;
+  } else if (res) {
+    token = null; usuario = null;
+  }
+  pintarSesion();
+}
+
+$("btnLogin").onclick = login;
+$("btnSalir").onclick = () => { token = null; usuario = null; pintarSesion(); };
+document.querySelectorAll("[data-get]").forEach((b) => b.onclick = () => llamar("GET", b.dataset.get));
+
+$("btnPut").onclick = () => {
+  const cuerpo = { titulo: $("titulo").value, descripcion: $("desc").value, cupo_maximo: $("cupo").value };
+  if ($("uid").value.trim() !== "") cuerpo.user_id = $("uid").value;
+  llamar("PUT", "/api/eventos/" + encodeURIComponent($("eid").value), cuerpo);
+};
+</script>
+</body>
+</html>
