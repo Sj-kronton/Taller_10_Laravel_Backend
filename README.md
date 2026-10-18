@@ -10,8 +10,8 @@ API RESTful en Laravel 13 para la gestión de eventos, con autenticación por to
 ## Instalación
 
 ```bash
-git clone <URL_DEL_REPOSITORIO>
-cd <CARPETA_DEL_REPOSITORIO>
+git clone https://github.com/Sj-kronton/Taller_10_Laravel_Backend
+cd Taller_10_Laravel_Backend
 cp .env.example .env
 docker compose up -d --build
 docker compose exec app composer install
